@@ -65,7 +65,17 @@
     preview('convert', data); $('#convert-action').disabled = false;
     $('#convert-feedback').textContent = 'Ready to convert. Choose your output format.';
   });
-  $('#convert-quality').addEventListener('input', event => $('#convert-quality-value').textContent = `${event.target.value}%`);
+  const formatSelect = $('#convert-format');
+  const qualityInput = $('#convert-quality');
+  formatSelect.addEventListener('change', () => {
+    const isSvg = formatSelect.value === 'image/svg+xml';
+    qualityInput.disabled = isSvg;
+    $('#convert-quality-hint').textContent = isSvg
+      ? 'SVG wraps your image in an SVG file; the image itself remains raster.'
+      : 'Lower quality creates a smaller file.';
+    $('#convert-quality-value').textContent = isSvg ? 'N/A' : `${qualityInput.value}%`;
+  });
+  qualityInput.addEventListener('input', event => $('#convert-quality-value').textContent = `${event.target.value}%`);
   $('#convert-action').addEventListener('click', () => {
     const data = state.convert; if (!data) return;
     const type = $('#convert-format').value, canvas = document.createElement('canvas');
@@ -73,6 +83,23 @@
     const context = canvas.getContext('2d');
     if (type === 'image/jpeg') { context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height); }
     context.drawImage(data.image, 0, 0);
+
+    if (type === 'image/svg+xml') {
+      canvas.toBlob(blob => {
+        if (!blob) { $('#convert-feedback').textContent = 'This image could not be prepared for SVG export.'; return; }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${data.width}" height="${data.height}" viewBox="0 0 ${data.width} ${data.height}"><image width="${data.width}" height="${data.height}" href="${reader.result}" xlink:href="${reader.result}"/></svg>`;
+          const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+          download(svgBlob, `${safeName(data.file.name)}.svg`);
+          $('#convert-feedback').textContent = `SVG file exported — ${formatBytes(svgBlob.size)}. The image is embedded as a bitmap.`;
+        };
+        reader.onerror = () => { $('#convert-feedback').textContent = 'Could not prepare the SVG file.'; };
+        reader.readAsDataURL(blob);
+      }, 'image/png');
+      return;
+    }
+
     canvas.toBlob(blob => {
       if (!blob) { $('#convert-feedback').textContent = 'This format could not be exported by your browser.'; return; }
       download(blob, `${safeName(data.file.name)}.${type.split('/')[1].replace('jpeg', 'jpg')}`);
@@ -101,8 +128,31 @@
     }
     $('#new-size').textContent = `${width} × ${height}`;
   }
-  $('#resize-width').addEventListener('input', () => updateDimensions('width'));
-  $('#resize-height').addEventListener('input', () => updateDimensions('height'));
+  $('[data-preset]').forEach(button => button.addEventListener('click', () => {
+    const data = state.resize;
+    if (!data) {
+      $('#resize-feedback').textContent = 'Choose an image first, then pick a size preset.';
+      return;
+    }
+    const [maxWidth, maxHeight] = button.dataset.preset.split(',').map(Number);
+    const scale = Math.min(maxWidth / data.width, maxHeight / data.height);
+    const width = Math.max(1, Math.round(data.width * scale));
+    const height = Math.max(1, Math.round(data.height * scale));
+    $('#resize-width').value = width;
+    $('#resize-height').value = height;
+    $('#keep-ratio').checked = true;
+    updateDimensions();
+    $('[data-preset]').forEach(item => item.classList.toggle('selected', item === button));
+    $('#resize-feedback').textContent = `${button.querySelector('strong').textContent}: fitted to ${width} × ${height} px without cropping or stretching.`;
+  }));
+  $('#resize-width').addEventListener('input', () => {
+    $('[data-preset]').forEach(item => item.classList.remove('selected'));
+    updateDimensions('width');
+  });
+  $('#resize-height').addEventListener('input', () => {
+    $('[data-preset]').forEach(item => item.classList.remove('selected'));
+    updateDimensions('height');
+  });
   $('#keep-ratio').addEventListener('change', () => updateDimensions('width'));
   $('#resize-action').addEventListener('click', () => {
     const data = state.resize; if (!data) return;
