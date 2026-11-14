@@ -43,11 +43,14 @@
     const feedback = $(`#${section}-feedback`);
     if (feedback) feedback.textContent = 'Select an image to begin.';
     if (section === 'resize') {
+      $('#resize-file').value = '';
       $('#dimension-card').classList.add('hidden');
       $('[data-preset].selected')?.classList.remove('selected');
       $('#resize-width').value = 1200; $('#resize-height').value = 800;
       $('#original-size').textContent = '—'; $('#new-size').textContent = '—';
     }
+    if (section === 'convert') $('#convert-file').value = '';
+    if (section === 'resize') $('#resize-file').value = '';
     if (section === 'studio') {
       $('#editor').classList.add('hidden'); $('#studio-drop').classList.remove('hidden');
       state.studioImage = null; state.rotation = 0;
@@ -144,7 +147,7 @@
     width = Number($('#resize-width').value); height = Number($('#resize-height').value);
     const valid = Number.isInteger(width) && Number.isInteger(height) && width >= 1 && height >= 1 && width <= 12000 && height <= 12000;
     $('#new-size').textContent = valid ? width + ' × ' + height : 'Invalid dimensions';
-    $('#resize-feedback').textContent = valid ? 'Dimensions look good. Export when you’re ready.' : 'Enter whole-number dimensions between 1 and 12,000 px.';
+    $('#resize-feedback').textContent = valid ? `New image size: ${width} × ${height} px. Ready to download.` : 'Enter whole-number dimensions between 1 and 12,000 px.';
     $('#resize-action').disabled = !valid;
   }
   $('[data-preset]').forEach(button => button.addEventListener('click', () => {
@@ -162,7 +165,7 @@
     $('#keep-ratio').checked = true;
     updateDimensions();
     $('[data-preset]').forEach(item => item.classList.toggle('selected', item === button));
-    $('#resize-feedback').textContent = `${button.querySelector('strong').textContent}: fitted to ${width} × ${height} px without cropping or stretching.`;
+    $('#resize-feedback').textContent = `New image size: ${width} × ${height} px. ${button.querySelector('strong').textContent} selected.`;
   }));
   $('#resize-width').addEventListener('input', () => {
     $('[data-preset]').forEach(item => item.classList.remove('selected'));
@@ -172,7 +175,16 @@
     $('[data-preset]').forEach(item => item.classList.remove('selected'));
     updateDimensions('height');
   });
-  $('#keep-ratio').addEventListener('change', () => updateDimensions('width'));
+  $('#keep-ratio').addEventListener('change', () => {
+    if ($('#keep-ratio').checked && state.resize) {
+      const width = Number($('#resize-width').value);
+      if (Number.isInteger(width) && width > 0) {
+        const height = Math.round(width * state.resize.height / state.resize.width);
+        $('#resize-height').value = Math.min(12000, Math.max(1, height));
+      }
+    }
+    updateDimensions('none');
+  });
   $('#resize-action').addEventListener('click', () => {
     const data = state.resize; if (!data) return;
     const width = Number($('#resize-width').value), height = Number($('#resize-height').value);
@@ -203,7 +215,7 @@
   ['brightness', 'contrast', 'saturation'].forEach(id => $(`#${id}`).addEventListener('input', event => { $(`#${id}-out`).textContent = `${event.target.value}%`; drawEditor(); }));
   $('#rotate-action').addEventListener('click', () => { state.rotation = (state.rotation + 90) % 360; drawEditor(); });
   $('#reset-action').addEventListener('click', () => { state.rotation = 0; ['brightness', 'contrast', 'saturation'].forEach(id => { $(`#${id}`).value = 100; $(`#${id}-out`).textContent = '100%'; }); drawEditor(); });
-  $('#studio-export').addEventListener('click', () => $('#edit-canvas').toBlob(blob => { if (blob && state.studio) { download(blob, `${safeName(state.studio.file.name)}-edited.png`); $('#studio-feedback').textContent = 'Your edited image is ready.'; } }, 'image/png'));
+  $('#studio-export').addEventListener('click', () => $('#edit-canvas').toBlob(blob => { if (blob && state.studio && state.studioImage) { download(blob, `${safeName(state.studio.file.name)}-edited.png`); $('#studio-feedback').textContent = 'Your edited image is ready.'; } }, 'image/png'));
 
   function download(blob, filename) {
     const url = URL.createObjectURL(blob), link = document.createElement('a');
