@@ -122,6 +122,7 @@
 
   let updatingRatio = false;
   setupDrop('resize', data => {
+    $('[data-preset].selected')?.classList.remove('selected');
     preview('resize', data); $('#resize-action').disabled = false;
     $('#resize-width').value = data.width; $('#resize-height').value = data.height;
     $('#original-size').textContent = data.width + ' × ' + data.height;
