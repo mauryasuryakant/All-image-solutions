@@ -42,8 +42,18 @@
     $(`#${section}-action`)?.setAttribute('disabled', '');
     const feedback = $(`#${section}-feedback`);
     if (feedback) feedback.textContent = 'Select an image to begin.';
-    if (section === 'resize') $('#dimension-card').classList.add('hidden');
-    if (section === 'studio') { $('#editor').classList.add('hidden'); $('#studio-drop').classList.remove('hidden'); state.studioImage = null; }
+    if (section === 'resize') {
+      $('#dimension-card').classList.add('hidden');
+      $('[data-preset].selected')?.classList.remove('selected');
+      $('#resize-width').value = 1200; $('#resize-height').value = 800;
+      $('#original-size').textContent = '—'; $('#new-size').textContent = '—';
+    }
+    if (section === 'studio') {
+      $('#editor').classList.add('hidden'); $('#studio-drop').classList.remove('hidden');
+      state.studioImage = null; state.rotation = 0;
+      ['brightness','contrast','saturation'].forEach(id => { $('#'+id).value = 100; $('#'+id+'-out').textContent = '100%'; });
+      $('#studio-file').value = '';
+    }
   }
   $$('[data-clear]').forEach(button => button.addEventListener('click', () => clearSection(button.dataset.clear)));
 
@@ -67,14 +77,17 @@
   });
   const formatSelect = $('#convert-format');
   const qualityInput = $('#convert-quality');
-  formatSelect.addEventListener('change', () => {
-    const isSvg = formatSelect.value === 'image/svg+xml';
-    qualityInput.disabled = isSvg;
+  function updateQualityControl() {
+    const type = formatSelect.value;
+    const isSvg = type === 'image/svg+xml', isPng = type === 'image/png';
+    qualityInput.disabled = isSvg || isPng;
+    $('#convert-quality-value').textContent = (isSvg || isPng) ? 'N/A' : qualityInput.value + '%';
     $('#convert-quality-hint').textContent = isSvg
-      ? 'SVG wraps your image in an SVG file; the image itself remains raster.'
-      : 'Lower quality creates a smaller file.';
-    $('#convert-quality-value').textContent = isSvg ? 'N/A' : `${qualityInput.value}%`;
-  });
+      ? 'SVG contains an embedded bitmap; it is not vector tracing.'
+      : isPng ? 'PNG is lossless, so a quality slider does not apply.' : 'Lower quality creates a smaller file.';
+  }
+  formatSelect.addEventListener('change', updateQualityControl);
+  updateQualityControl();
   qualityInput.addEventListener('input', event => $('#convert-quality-value').textContent = `${event.target.value}%`);
   $('#convert-action').addEventListener('click', () => {
     const data = state.convert; if (!data) return;
@@ -111,22 +124,27 @@
   setupDrop('resize', data => {
     preview('resize', data); $('#resize-action').disabled = false;
     $('#resize-width').value = data.width; $('#resize-height').value = data.height;
-    $('#original-size').textContent = `${data.width} × ${data.height}`;
+    $('#original-size').textContent = data.width + ' × ' + data.height;
     $('#dimension-card').classList.remove('hidden'); updateDimensions();
     $('#resize-feedback').textContent = 'Set your target dimensions and export.';
   });
   function updateDimensions(changed = 'width') {
     const data = state.resize; if (!data) return;
-    let width = Math.max(1, Math.min(12000, Number($('#resize-width').value) || 1));
-    let height = Math.max(1, Math.min(12000, Number($('#resize-height').value) || 1));
-    if ($('#keep-ratio').checked && !updatingRatio) {
+    let width = Number($('#resize-width').value), height = Number($('#resize-height').value);
+    const widthValid = Number.isInteger(width) && width >= 1 && width <= 12000;
+    const heightValid = Number.isInteger(height) && height >= 1 && height <= 12000;
+    if ($('#keep-ratio').checked && !updatingRatio && ((changed === 'width' && widthValid) || (changed === 'height' && heightValid))) {
       updatingRatio = true;
-      if (changed === 'width') height = Math.max(1, Math.round(width * data.height / data.width));
-      else width = Math.max(1, Math.round(height * data.width / data.height));
+      if (changed === 'width') height = Math.round(width * data.height / data.width);
+      else width = Math.round(height * data.width / data.height);
       $('#resize-width').value = width; $('#resize-height').value = height;
       updatingRatio = false;
     }
-    $('#new-size').textContent = `${width} × ${height}`;
+    width = Number($('#resize-width').value); height = Number($('#resize-height').value);
+    const valid = Number.isInteger(width) && Number.isInteger(height) && width >= 1 && height >= 1 && width <= 12000 && height <= 12000;
+    $('#new-size').textContent = valid ? width + ' × ' + height : 'Invalid dimensions';
+    $('#resize-feedback').textContent = valid ? 'Dimensions look good. Export when you’re ready.' : 'Enter whole-number dimensions between 1 and 12,000 px.';
+    $('#resize-action').disabled = !valid;
   }
   $('[data-preset]').forEach(button => button.addEventListener('click', () => {
     const data = state.resize;
@@ -135,7 +153,7 @@
       return;
     }
     const [maxWidth, maxHeight] = button.dataset.preset.split(',').map(Number);
-    const scale = Math.min(maxWidth / data.width, maxHeight / data.height);
+    const scale = Math.min(1, maxWidth / data.width, maxHeight / data.height);
     const width = Math.max(1, Math.round(data.width * scale));
     const height = Math.max(1, Math.round(data.height * scale));
     $('#resize-width').value = width;
@@ -157,12 +175,14 @@
   $('#resize-action').addEventListener('click', () => {
     const data = state.resize; if (!data) return;
     const width = Number($('#resize-width').value), height = Number($('#resize-height').value);
-    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > 12000 || height > 12000) { $('#resize-feedback').textContent = 'Choose dimensions between 1 and 12,000 pixels.'; return; }
+    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > 12000 || height > 12000) { $('#resize-feedback').textContent = 'Choose whole-number dimensions between 1 and 12,000 pixels.'; $('#resize-action').disabled = true; return; }
     const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
     canvas.getContext('2d').drawImage(data.image, 0, 0, width, height);
     canvas.toBlob(blob => { if (!blob) return; download(blob, `${safeName(data.file.name)}-${width}x${height}.png`); $('#resize-feedback').textContent = `Exported ${width} × ${height} px · ${formatBytes(blob.size)}.`; }, 'image/png');
   });
 
+  $('#studio-change').addEventListener('click', () => $('#studio-file').click());
+  $('#studio-remove').addEventListener('click', () => clearSection('studio'));
   setupDrop('studio', data => {
     $('#studio-drop').classList.add('hidden'); $('#editor').classList.remove('hidden');
     state.studioImage = data.image; state.rotation = 0;
