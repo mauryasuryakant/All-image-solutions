@@ -104,3 +104,5 @@ button:disabled{cursor:not-allowed}
 
 /* Keep upload controls keyboard-accessible while visually hiding the native picker */
 .dropzone input.visually-hidden-input{display:block!important}
+
+.ambient{display:none!important}body,body[data-section=resolution],body[data-section=studio]{background:#f4f5f2!important}.glass{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}.hero-copy h1{font-family:Arial,Helvetica,sans-serif;letter-spacing:-1px}
