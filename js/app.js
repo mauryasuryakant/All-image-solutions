@@ -171,9 +171,11 @@
     updateDimensions('width');
   });
   $('#resize-height').addEventListener('input', () => {
-    $('[data-preset]').forEach(item => item.classList.remove('selected'));
+    $('[data-preset]').forEach(item => { item.classList.remove('selected'); item.setAttribute('aria-pressed', 'false'); });
     updateDimensions('height');
   });
+  $('#resize-width').addEventListener('change', () => updateDimensions('width'));
+  $('#resize-height').addEventListener('change', () => updateDimensions('height'));
   $('#keep-ratio').addEventListener('change', () => {
     if ($('#keep-ratio').checked && state.resize) {
       const width = Number($('#resize-width').value);
