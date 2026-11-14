@@ -12,3 +12,9 @@
 .field-hint{display:block;font-weight:400}
 .field input:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:520px){.preset-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.preset-button{min-height:62px}}
+
+.visually-hidden-input{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.dropzone:focus-within{outline:2px solid var(--accent-deep);outline-offset:3px}
+.studio-file-actions{display:flex;align-items:center;gap:12px;margin:0 0 14px}
+.studio-file-actions .secondary-button{height:36px}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
