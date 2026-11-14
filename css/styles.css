@@ -101,3 +101,6 @@ button:disabled{cursor:not-allowed}
  .preset-button strong{font-size:14px}
  .preset-button span{font-size:12px}
 }
+
+/* Keep upload controls keyboard-accessible while visually hiding the native picker */
+.dropzone input.visually-hidden-input{display:block!important}
