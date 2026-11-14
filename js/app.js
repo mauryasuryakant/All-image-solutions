@@ -50,7 +50,6 @@
       $('#original-size').textContent = '—'; $('#new-size').textContent = '—';
     }
     if (section === 'convert') $('#convert-file').value = '';
-    if (section === 'resize') $('#resize-file').value = '';
     if (section === 'studio') {
       $('#editor').classList.add('hidden'); $('#studio-drop').classList.remove('hidden');
       state.studioImage = null; state.rotation = 0;
@@ -164,11 +163,11 @@
     $('#resize-height').value = height;
     $('#keep-ratio').checked = true;
     updateDimensions();
-    $('[data-preset]').forEach(item => item.classList.toggle('selected', item === button));
+    $('[data-preset]').forEach(item => { item.classList.toggle('selected', item === button); item.setAttribute('aria-pressed', String(item === button)); });
     $('#resize-feedback').textContent = `New image size: ${width} × ${height} px. ${button.querySelector('strong').textContent} selected.`;
   }));
   $('#resize-width').addEventListener('input', () => {
-    $('[data-preset]').forEach(item => item.classList.remove('selected'));
+    $('[data-preset]').forEach(item => { item.classList.remove('selected'); item.setAttribute('aria-pressed', 'false'); });
     updateDimensions('width');
   });
   $('#resize-height').addEventListener('input', () => {
